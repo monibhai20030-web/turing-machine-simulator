@@ -3,470 +3,259 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚡ Advanced Multi-Tape Turing Machine ⚡</title>
+    <title>Fixed Multi-Tape Turing Simulator</title>
     <style>
         :root {
-            --primary: #0ea5e9; /* Light blue */
-            --primary-dark: #0284c7;
-            --bg: #0f172a; /* Dark gray-blue */
-            --card-bg: #1e293b;
-            --tape-bg: #111827;
-            --cell-border: #334155;
-            --text-main: #f1f5f9;
-            --text-muted: #94a3b8;
-            --head-color: #f59e0b; /* Amber */
-            --cell-size: 55px;
-            --accepted: #10b981; /* Emerald */
-            --rejected: #ef4444; /* Red */
+            --bg: #0f172a;
+            --card: #1e293b;
+            --primary: #38bdf8;
+            --head: #ef4444;
+            --cell-size: 60px;
         }
 
         body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background-color: var(--bg);
-            color: var(--text-main);
-            margin: 0;
+            font-family: 'Courier New', monospace;
+            background: var(--bg);
+            color: white;
             display: flex;
             flex-direction: column;
             align-items: center;
             padding: 20px;
-            min-height: 100vh;
         }
 
-        .container {
-            max-width: 1000px;
-            width: 100%;
-            background: var(--card-bg);
-            padding: 2.5rem;
-            border-radius: 16px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
-            border: 1px solid var(--cell-border);
+        .machine-wrap {
+            background: var(--card);
+            padding: 30px;
+            border-radius: 20px;
+            width: 900px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
         }
 
-        .header { text-align: center; margin-bottom: 2.5rem; }
-        .header h2 { margin-top: 0; color: var(--primary); font-size: 2rem; }
-        .header p { color: var(--text-muted); margin-bottom: 0; }
-
-        .machine-status {
-            display: flex;
-            justify-content: space-around;
-            background: var(--tape-bg);
-            padding: 15px 25px;
-            border-radius: 10px;
-            margin-bottom: 25px;
-            font-weight: bold;
-            font-size: 1.1rem;
-            border: 1px solid var(--cell-border);
-        }
-
-        #state-val.ACCEPTED { color: var(--accepted); text-shadow: 0 0 10px rgba(16, 185, 129, 0.5); }
-        #state-val.REJECTED { color: var(--rejected); text-shadow: 0 0 10px rgba(239, 68, 68, 0.5); }
-
-        /* Tape Styles */
-        .tape-label {
-            font-weight: bold;
-            margin-bottom: 8px;
-            color: var(--text-main);
+        .status-panel {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-        }
-        
-        .head-info {
-            font-family: monospace;
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            background: rgba(255, 255, 255, 0.05);
-            padding: 2px 8px;
-            border-radius: 4px;
+            background: #000;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            border: 1px solid #334155;
+            font-size: 1.2rem;
+            color: var(--primary);
         }
 
-        .tape-container {
+        .tape-view {
             position: relative;
-            margin: 0 0 40px 0;
-            overflow: hidden;
-            background: var(--tape-bg);
-            padding: 15px 10px;
+            height: 100px;
+            background: #111827;
+            margin-bottom: 30px;
             border-radius: 8px;
-            border: 1px solid var(--cell-border);
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+            overflow: hidden;
+            border: 2px solid #334155;
         }
 
-        .tape-row {
+        /* The Head - Positioned at exact horizontal center */
+        .visual-head {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: var(--cell-size);
+            height: var(--cell-size);
+            border: 4px solid var(--head);
+            z-index: 100;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+            pointer-events: none;
+        }
+
+        .tape-strip {
             display: flex;
-            transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1); /* Snappy but smooth */
+            position: absolute;
+            top: 50%;
+            margin-top: calc(var(--cell-size) / -2);
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
             will-change: transform;
         }
 
         .cell {
             min-width: var(--cell-size);
+            max-width: var(--cell-size);
             height: var(--cell-size);
-            border: 1px solid var(--cell-border);
-            background: var(--card-bg);
+            border: 1px solid #334155;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: 'Courier New', monospace;
-            font-size: 1.5rem;
-            font-weight: bold;
+            font-size: 1.8rem;
+            background: #1e293b;
             box-sizing: border-box;
-            color: var(--text-main);
-            transition: background 0.2s, color 0.2s, border-color 0.2s;
-        }
-        
-        .cell.blank { color: #444; }
-        .cell.writing { background: #334155; animation: writePulse 0.4s; }
-        
-        @keyframes writePulse {
-            0% { background: #334155; }
-            50% { background: var(--primary); }
-            100% { background: var(--card-bg); }
         }
 
-        .head-pointer {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            top: 5px; /* Aligned with padding */
-            width: calc(var(--cell-size) + 10px);
-            height: calc(var(--cell-size) + 20px);
-            border: 4px solid var(--head-color);
-            border-radius: 6px;
-            box-sizing: border-box;
-            z-index: 10;
-            pointer-events: none;
-            box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
-            transition: opacity 0.3s;
-        }
-        
-        .machine-status.ACCEPTED .head-pointer { border-color: var(--accepted); box-shadow: 0 0 20px rgba(16, 185, 129, 0.4); }
-        .machine-status.REJECTED .head-pointer { border-color: var(--rejected); box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); }
+        .cell.filled { color: var(--primary); font-weight: bold; }
 
-        /* Controls */
         .controls {
             display: flex;
-            flex-wrap: wrap;
             gap: 15px;
-            margin-top: 30px;
             justify-content: center;
-            background: var(--tape-bg);
             padding: 20px;
+            background: #111827;
             border-radius: 12px;
-            border: 1px solid var(--cell-border);
         }
 
         input {
-            padding: 12px 15px;
-            background: var(--bg);
-            color: var(--text-main);
-            border: 2px solid var(--cell-border);
-            border-radius: 8px;
-            width: 250px;
+            padding: 12px;
             font-size: 1rem;
-            transition: border-color 0.2s;
-        }
-        
-        input:focus {
-            outline: none;
-            border-color: var(--primary);
+            border-radius: 6px;
+            border: 1px solid #334155;
+            background: #0f172a;
+            color: white;
+            width: 200px;
         }
 
         button {
-            padding: 12px 24px;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1rem;
+            padding: 12px 25px;
             font-weight: bold;
-            transition: background 0.2s, transform 0.1s, opacity 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        #startBtn { background: var(--primary); }
-        #startBtn:hover:not(:disabled) { background: var(--primary-dark); }
-        #resetBtn { background: #475569; }
-        #resetBtn:hover:not(:disabled) { background: #64748b; }
-
-        button:active:not(:disabled) { transform: translateY(1px); }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        .speed-control {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            color: var(--text-muted);
-            font-size: 0.9rem;
-        }
-        
-        input[type=range] {
-            width: 150px;
-            padding: 0;
+            border-radius: 6px;
+            border: none;
             cursor: pointer;
+            background: var(--primary);
+            color: #000;
         }
 
-        .explanation {
-            margin-top: 30px;
-            padding: 20px;
-            background: #1e293b;
-            border-radius: 10px;
-            border-left: 5px solid var(--primary);
-            font-size: 1rem;
-            line-height: 1.6;
-            color: var(--text-main);
-        }
+        button:disabled { opacity: 0.3; }
 
-        .highlight { color: var(--primary); font-weight: bold; }
-        .explanation b { color: var(--text-main); }
-        .explanation i { color: var(--text-muted); }
+        .label { font-size: 0.9rem; color: #94a3b8; margin-bottom: 5px; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="header">
-        <h2>⚡ Advanced Multi-Tape Turing Machine</h2>
-        <p>Interactive Simulation: Palindrome Checker ($O(n)$ Complexity)</p>
+<div class="machine-wrap">
+    <h1 style="text-align: center; margin-top: 0;">Multi-Tape Simulator</h1>
+
+    <div class="status-panel">
+        <span>STATE: <span id="state">IDLE</span></span>
+        <span>STEPS: <span id="steps">0</span></span>
     </div>
 
-    <div class="machine-status" id="status-bar">
-        <span>STATE: <span id="state-val" class="highlight">START</span></span>
-        <span>STEPS: <span id="step-count" class="highlight">0</span></span>
+    <div class="label">TAPE 1: INPUT</div>
+    <div class="tape-view">
+        <div class="visual-head"></div>
+        <div id="strip1" class="tape-strip"></div>
     </div>
 
-    <div class="tape-label">
-        <span>Tape 1: Input (Read-Only)</span>
-        <span class="head-info">Head Pos: <span id="head1-pos">0</span></span>
-    </div>
-    <div class="tape-container">
-        <div class="head-pointer" id="head1-ptr"></div>
-        <div id="tape1" class="tape-row"></div>
-    </div>
-
-    <div class="tape-label">
-        <span>Tape 2: Working/Reversed Copy</span>
-        <span class="head-info">Head Pos: <span id="head2-pos">0</span></span>
-    </div>
-    <div class="tape-container">
-        <div class="head-pointer" id="head2-ptr"></div>
-        <div id="tape2" class="tape-row"></div>
+    <div class="label">TAPE 2: WORK</div>
+    <div class="tape-view">
+        <div class="visual-head"></div>
+        <div id="strip2" class="tape-strip"></div>
     </div>
 
     <div class="controls">
-        <input type="text" id="userInput" placeholder="Enter binary string (e.g. 101101)" maxlength="16" value="101101">
-        <button id="startBtn" onclick="initMachine()">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-            Load & Run
-        </button>
-        <button id="resetBtn" onclick="reset()">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-            Reset
-        </button>
-        <div class="speed-control">
-            Slow
-            <input type="range" id="speedSlider" min="50" max="1000" value="400" step="50">
-            Fast
-        </div>
-    </div>
-
-    <div class="explanation">
-        <strong>The Efficiency Advantage ($O(n)$):</strong><br>
-        This multi-tape machine solves the palindrome problem much faster than a standard single-tape machine.
-        <ol>
-            <li><b class="highlight">COPY:</b> Tape 1 reads the input. Tape 2 concurrently writes a copy, moving its head right.</li>
-            <li><b class="highlight">REWIND:</b> The machine rewinds Tape 2's head back to the beginning.</li>
-            <li><b class="highlight">CHECK:</b> Both tapes read simultaneously. Tape 1 reads Left-to-Right, while Tape 2 reads Right-to-Left (relative to original input).</li>
-        </ol>
-        While a single-tape machine requires $O(n^2)$ steps (shuttling back and forth for every pair), this machine finishes in a small multiple of $n$ steps.
+        <input type="text" id="inputVal" value="11011" maxlength="12">
+        <button id="btnRun" onclick="run()">START SIMULATION</button>
+        <button onclick="reset()">RESET</button>
     </div>
 </div>
 
 <script>
-    const TAPE_SIZE = 50; // Increased visual tape
-    const CENTER_OFFSET = 25;
-    const BLANK = '⊔'; // More formal blank symbol
+    const TAPE_LEN = 100;
+    const START_POS = 50; // The "logical" center of our array
+    const BLANK = '⊔';
     
-    let tape1Data = Array(TAPE_SIZE).fill(BLANK);
-    let tape2Data = Array(TAPE_SIZE).fill(BLANK);
-    let head1 = CENTER_OFFSET;
-    let head2 = CENTER_OFFSET;
-    let currentState = 'START';
-    let steps = 0;
-    let running = false;
-    let simulationTimeout;
+    let tape1 = Array(TAPE_LEN).fill(BLANK);
+    let tape2 = Array(TAPE_LEN).fill(BLANK);
+    let head1 = START_POS;
+    let head2 = START_POS;
+    let stepCount = 0;
 
-    const ui = {
-        tape1: document.getElementById('tape1'),
-        tape2: document.getElementById('tape2'),
-        state: document.getElementById('state-val'),
-        steps: document.getElementById('step-count'),
-        startBtn: document.getElementById('startBtn'),
-        input: document.getElementById('userInput'),
-        speed: document.getElementById('speedSlider'),
-        statusBar: document.getElementById('status-bar'),
-        h1Pos: document.getElementById('head1-pos'),
-        h2Pos: document.getElementById('head2-pos')
-    };
-
-    // Get delay from slider (inverse relation: higher value = faster)
-    function getDelay() {
-        return 1050 - parseInt(ui.speed.value);
-    }
-
-    function renderTapes(writingTape2 = false) {
-        // Efficient rendering using mapped arrays and conditional classes
-        const renderRow = (data, currentIndex, isTape2) => {
-            return data.map((char, index) => {
-                let classes = ['cell'];
-                if (char === BLANK) classes.push('blank');
-                // Unique feature: pulse effect only on Tape 2 cells that are currently being written
-                if (writingTape2 && isTape2 && index === currentIndex) classes.push('writing');
-                return `<div class="${classes.join(' ')}">${char}</div>`;
-            }).join('');
+    // This function calculates how much to shift the tape strip
+    // so that the cell at 'headIndex' is exactly under the red head.
+    function render() {
+        const updateStrip = (id, data, head) => {
+            const container = document.getElementById(id);
+            // Re-render cells
+            container.innerHTML = data.map(char => 
+                `<div class="cell ${char !== BLANK ? 'filled' : ''}">${char}</div>`
+            ).join('');
+            
+            // MATH: Move the strip so index 'head' is at center of screen.
+            // Center of screen is 0px in absolute positioning if we offset correctly.
+            // Since the tape-view is 900px wide, center is 450px.
+            // Each cell is 60px.
+            const centerPoint = 450;
+            const headOffset = (head * 60) + 30; // center of the specific cell
+            const finalTranslate = centerPoint - headOffset;
+            
+            container.style.transform = `translateX(${finalTranslate}px)`;
         };
 
-        ui.tape1.innerHTML = renderRow(tape1Data, head1, false);
-        ui.tape2.innerHTML = renderRow(tape2Data, head2, true);
-
-        // Keep heads centered, move tapes
-        const offset1 = (CENTER_OFFSET - head1) * 55;
-        const offset2 = (CENTER_OFFSET - head2) * 55;
-        
-        ui.tape1.style.transform = `translateX(${offset1}px)`;
-        ui.tape2.style.transform = `translateX(${offset2}px)`;
-
-        // Update status info
-        ui.state.innerText = currentState;
-        ui.state.className = currentState; // Apply Accepted/Rejected classes
-        ui.steps.innerText = steps;
-        ui.h1Pos.innerText = head1 - CENTER_OFFSET;
-        ui.h2Pos.innerText = head2 - CENTER_OFFSET;
-    }
-
-    function initMachine() {
-        if(running) return;
-        
-        // Basic validation
-        let inputStr = ui.input.value.trim();
-        if (!/^[01]*$/.test(inputStr)) {
-            alert("Please enter a valid binary string (0s and 1s only).");
-            return;
-        }
-        if (inputStr === "") inputStr = "101101"; // Fallback
-        
-        reset();
-        ui.input.value = inputStr; // Update in case of empty
-        
-        // Load input into tape 1, starting at center
-        for(let i=0; i<inputStr.length; i++) {
-            tape1Data[CENTER_OFFSET + i] = inputStr[i];
-        }
-        
-        renderTapes();
-        runSimulation();
-    }
-
-    async function runSimulation() {
-        running = true;
-        ui.startBtn.disabled = true;
-        ui.input.disabled = true;
-
-        // PHASE 1: COPY
-        currentState = 'COPYING';
-        while(tape1Data[head1] !== BLANK) {
-            steps++;
-            tape2Data[head2] = tape1Data[head1]; // Read T1, Write T2
-            renderTapes(true); // Trigger writing pulse on T2
-            await sleep(getDelay());
-            
-            head1++;
-            head2++;
-            renderTapes();
-            await sleep(getDelay() / 2); // Small gap after movement
-        }
-
-        // PHASE 2: REWIND TAPE 2 HEAD (Unique feature: T1 head stays put)
-        currentState = 'REWINDING_T2';
-        head2--; // move back from the blank it just wrote
-        renderTapes();
-        
-        while(tape2Data[head2] !== BLANK) {
-             // If we've reached the absolute left limit (shouldn't happen with correct logic)
-            if (head2 <= 0) break;
-            if (tape2Data[head2-1] === BLANK) break; // Reached start of string
-            
-            steps++;
-            head2--;
-            renderTapes();
-            await sleep(getDelay() / 3); // Faster rewind
-        }
-        // Head2 is now at the first character of the string
-
-        // PHASE 3: CHECK PALINDROME
-        currentState = 'CHECKING';
-        head1 = CENTER_OFFSET; // Reset T1 head to start reading L-to-R
-        renderTapes();
-        await sleep(getDelay());
-
-        while(tape1Data[head1] !== BLANK) {
-            steps++;
-            renderTapes();
-            await sleep(getDelay());
-
-            if(tape1Data[head1] !== tape2Data[head2]) {
-                currentState = 'REJECTED';
-                ui.statusBar.classList.add('REJECTED');
-                renderTapes();
-                endRun();
-                return;
-            }
-            
-            head1++; // T1 reads L -> R
-            head2++; // T2 reads string backwards (originally L->R copy)
-            
-            // Safety break
-            if (steps > TAPE_SIZE * 3) break; 
-        }
-
-        currentState = 'ACCEPTED';
-        ui.statusBar.classList.add('ACCEPTED');
-        renderTapes();
-        endRun();
-    }
-
-    function endRun() {
-        running = false;
-        ui.startBtn.disabled = false;
-        ui.input.disabled = false;
+        updateStrip('strip1', tape1, head1);
+        updateStrip('strip2', tape2, head2);
+        document.getElementById('steps').innerText = stepCount;
     }
 
     function reset() {
-        clearTimeout(simulationTimeout);
-        running = false;
-        tape1Data = Array(TAPE_SIZE).fill(BLANK);
-        tape2Data = Array(TAPE_SIZE).fill(BLANK);
-        head1 = CENTER_OFFSET;
-        head2 = CENTER_OFFSET;
-        currentState = 'START';
-        steps = 0;
-        
-        ui.statusBar.classList.remove('ACCEPTED', 'REJECTED');
-        ui.startBtn.disabled = false;
-        ui.input.disabled = false;
-        renderTapes();
+        tape1.fill(BLANK);
+        tape2.fill(BLANK);
+        head1 = START_POS;
+        head2 = START_POS;
+        stepCount = 0;
+        document.getElementById('state').innerText = "IDLE";
+        document.getElementById('btnRun').disabled = false;
+        render();
     }
 
-    // Custom sleep with abort control
-    function sleep(ms) { 
-        return new Promise(resolve => {
-            if (!running) return; // Don't sleep if stopped
-            simulationTimeout = setTimeout(resolve, ms);
-        }); 
+    async function run() {
+        reset();
+        const input = document.getElementById('inputVal').value || "11011";
+        document.getElementById('btnRun').disabled = true;
+
+        // LOAD: Put input onto Tape 1 starting at the head
+        for(let i=0; i<input.length; i++) {
+            tape1[START_POS + i] = input[i];
+        }
+        render();
+        await sleep(1000);
+
+        // 1. COPY PHASE
+        document.getElementById('state').innerText = "PHASE: COPYING";
+        for(let i=0; i<input.length; i++) {
+            tape2[head2] = tape1[head1];
+            stepCount++;
+            render();
+            await sleep(500);
+            head1++;
+            head2++;
+            render();
+            await sleep(200);
+        }
+
+        // 2. REWIND PHASE
+        document.getElementById('state').innerText = "PHASE: REWINDING";
+        head1 = START_POS; // Jump back
+        head2--; // Move off the blank into the last char
+        render();
+        await sleep(1000);
+
+        // 3. CHECK PHASE
+        document.getElementById('state').innerText = "PHASE: CHECKING";
+        for(let i=0; i<input.length; i++) {
+            render();
+            await sleep(600);
+            
+            if(tape1[head1] !== tape2[head2]) {
+                document.getElementById('state').innerText = "REJECTED";
+                return;
+            }
+            stepCount++;
+            head1++;
+            head2--;
+        }
+
+        document.getElementById('state').innerText = "ACCEPTED";
     }
 
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+    
     // Initial draw
-    renderTapes();
+    render();
 </script>
 
 </body>
