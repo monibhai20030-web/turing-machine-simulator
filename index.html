@@ -1,262 +1,1721 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fixed Multi-Tape Turing Simulator</title>
-    <style>
-        :root {
-            --bg: #0f172a;
-            --card: #1e293b;
-            --primary: #38bdf8;
-            --head: #ef4444;
-            --cell-size: 60px;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-Tape Turing Machine — Advanced Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #060a10;
+  --surface: #0d1520;
+  --card: #111c2d;
+  --border: #1e3a5f;
+  --primary: #00d4ff;
+  --secondary: #ff6b35;
+  --accent: #7fff6b;
+  --warn: #ffd700;
+  --tape1: #00d4ff;
+  --tape2: #ff6b35;
+  --head-color: #ffffff;
+  --text: #cdd9e5;
+  --muted: #5c7a9a;
+  --cell: 58px;
+  --glow1: 0 0 20px rgba(0,212,255,0.4);
+  --glow2: 0 0 20px rgba(255,107,53,0.4);
+}
 
-        body {
-            font-family: 'Courier New', monospace;
-            background: var(--bg);
-            color: white;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px;
-        }
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
-        .machine-wrap {
-            background: var(--card);
-            padding: 30px;
-            border-radius: 20px;
-            width: 900px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-        }
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
 
-        .status-panel {
-            display: flex;
-            justify-content: space-between;
-            background: #000;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 25px;
-            border: 1px solid #334155;
-            font-size: 1.2rem;
-            color: var(--primary);
-        }
+/* ── GRID BACKGROUND ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
 
-        .tape-view {
-            position: relative;
-            height: 100px;
-            background: #111827;
-            margin-bottom: 30px;
-            border-radius: 8px;
-            overflow: hidden;
-            border: 2px solid #334155;
-        }
+.wrapper {
+  position: relative;
+  z-index: 1;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 30px 20px 60px;
+}
 
-        /* The Head - Positioned at exact horizontal center */
-        .visual-head {
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            width: var(--cell-size);
-            height: var(--cell-size);
-            border: 4px solid var(--head);
-            z-index: 100;
-            box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
-            pointer-events: none;
-        }
+/* ── HEADER ── */
+.hero {
+  text-align: center;
+  margin-bottom: 40px;
+}
 
-        .tape-strip {
-            display: flex;
-            position: absolute;
-            top: 50%;
-            margin-top: calc(var(--cell-size) / -2);
-            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-            will-change: transform;
-        }
+.hero-badge {
+  display: inline-block;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 4px;
+  color: var(--primary);
+  background: rgba(0,212,255,0.08);
+  border: 1px solid rgba(0,212,255,0.25);
+  padding: 6px 18px;
+  border-radius: 2px;
+  margin-bottom: 18px;
+  text-transform: uppercase;
+}
 
-        .cell {
-            min-width: var(--cell-size);
-            max-width: var(--cell-size);
-            height: var(--cell-size);
-            border: 1px solid #334155;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.8rem;
-            background: #1e293b;
-            box-sizing: border-box;
-        }
+.hero h1 {
+  font-family: 'Orbitron', monospace;
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-weight: 900;
+  background: linear-gradient(135deg, #00d4ff 0%, #ffffff 50%, #ff6b35 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.1;
+  margin-bottom: 12px;
+}
 
-        .cell.filled { color: var(--primary); font-weight: bold; }
+.hero p {
+  font-size: 0.9rem;
+  color: var(--muted);
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
 
-        .controls {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            padding: 20px;
-            background: #111827;
-            border-radius: 12px;
-        }
+/* ── CONCEPT PANELS ── */
+.concept-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 30px;
+}
 
-        input {
-            padding: 12px;
-            font-size: 1rem;
-            border-radius: 6px;
-            border: 1px solid #334155;
-            background: #0f172a;
-            color: white;
-            width: 200px;
-        }
+.concept-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  position: relative;
+  overflow: hidden;
+}
 
-        button {
-            padding: 12px 25px;
-            font-weight: bold;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer;
-            background: var(--primary);
-            color: #000;
-        }
+.concept-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+}
 
-        button:disabled { opacity: 0.3; }
+.concept-card.c1::before { background: linear-gradient(90deg, var(--tape1), transparent); }
+.concept-card.c2::before { background: linear-gradient(90deg, var(--tape2), transparent); }
+.concept-card.c3::before { background: linear-gradient(90deg, var(--accent), transparent); }
+.concept-card.c4::before { background: linear-gradient(90deg, var(--warn), transparent); }
 
-        .label { font-size: 0.9rem; color: #94a3b8; margin-bottom: 5px; }
-    </style>
+.concept-card h3 {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.concept-card p {
+  font-size: 0.82rem;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+/* ── MAIN SIMULATOR ── */
+.simulator {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 30px;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+}
+
+.sim-header {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 18px 28px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.sim-header h2 {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--primary);
+  flex: 1;
+}
+
+.status-chips {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.78rem;
+  padding: 6px 14px;
+  border-radius: 4px;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border);
+  letter-spacing: 1px;
+}
+
+.chip .label { color: var(--muted); font-size: 0.68rem; display: block; margin-bottom: 2px; }
+.chip .val { color: var(--primary); }
+
+/* ── PHASE BANNER ── */
+.phase-banner {
+  padding: 10px 28px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.82rem;
+  letter-spacing: 2px;
+  background: rgba(0,0,0,0.3);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  transition: background 0.4s;
+}
+
+.phase-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+  animation: pulse 1.5s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.7)} }
+
+#phase-text { color: var(--primary); }
+#phase-desc { color: var(--muted); font-size: 0.72rem; margin-left: 10px; }
+
+/* ── TAPE SECTION ── */
+.tape-section {
+  padding: 24px 28px;
+}
+
+.tape-block {
+  margin-bottom: 28px;
+}
+
+.tape-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.tape-label .dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+}
+
+.tape-label h4 {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 2px;
+  font-weight: 700;
+}
+
+.tape-label .role {
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-left: auto;
+  font-family: 'Share Tech Mono', monospace;
+}
+
+.tape-label .head-pos {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.7rem;
+  padding: 2px 10px;
+  border-radius: 3px;
+  background: rgba(0,0,0,0.4);
+}
+
+/* ── TAPE VIEWPORT ── */
+.tape-viewport {
+  position: relative;
+  height: 80px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #07111e;
+  border: 1px solid var(--border);
+}
+
+/* Fade edges */
+.tape-viewport::before,
+.tape-viewport::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 80px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.tape-viewport::before {
+  left: 0;
+  background: linear-gradient(90deg, #07111e, transparent);
+}
+
+.tape-viewport::after {
+  right: 0;
+  background: linear-gradient(270deg, #07111e, transparent);
+}
+
+/* Head indicator */
+.head-marker {
+  position: absolute;
+  left: 50%;
+  top: 0; bottom: 0;
+  transform: translateX(-50%);
+  width: var(--cell);
+  z-index: 20;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.head-marker::before {
+  content: '▼';
+  font-size: 12px;
+  color: var(--head-color);
+  position: absolute;
+  top: -18px;
+}
+
+.head-box {
+  position: absolute;
+  top: 0; bottom: 0;
+  left: 0;
+  width: 100%;
+  border: 2px solid;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.tape1-head .head-box {
+  border-color: var(--tape1);
+  box-shadow: 0 0 16px rgba(0,212,255,0.5);
+  animation: headGlow1 2s infinite;
+}
+
+.tape2-head .head-box {
+  border-color: var(--tape2);
+  box-shadow: 0 0 16px rgba(255,107,53,0.5);
+  animation: headGlow2 2s infinite;
+}
+
+@keyframes headGlow1 { 0%,100%{box-shadow:0 0 16px rgba(0,212,255,0.5)} 50%{box-shadow:0 0 30px rgba(0,212,255,0.9)} }
+@keyframes headGlow2 { 0%,100%{box-shadow:0 0 16px rgba(255,107,53,0.5)} 50%{box-shadow:0 0 30px rgba(255,107,53,0.9)} }
+
+/* Tape strip */
+.tape-strip {
+  display: flex;
+  position: absolute;
+  top: 0; bottom: 0;
+  left: 0;
+  align-items: center;
+  transition: transform 0.45s cubic-bezier(0.4,0,0.2,1);
+  will-change: transform;
+}
+
+.cell {
+  min-width: var(--cell);
+  max-width: var(--cell);
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1.5rem;
+  border-right: 1px solid rgba(30,58,95,0.6);
+  background: #07111e;
+  position: relative;
+  transition: background 0.3s, color 0.3s;
+  user-select: none;
+}
+
+.cell.t1-cell { color: var(--tape1); }
+.cell.t2-cell { color: var(--tape2); }
+.cell.blank { color: #1e3a5f; font-size: 1rem; }
+
+.cell.active-t1 { background: rgba(0,212,255,0.15); }
+.cell.active-t2 { background: rgba(255,107,53,0.15); }
+
+/* Cell index labels */
+.cell::after {
+  content: attr(data-idx);
+  position: absolute;
+  bottom: 3px;
+  font-size: 0.45rem;
+  color: #1e3a5f;
+  font-family: 'Share Tech Mono', monospace;
+}
+
+/* ── CONTROLS ── */
+.controls {
+  padding: 20px 28px;
+  border-top: 1px solid var(--border);
+  background: var(--card);
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.input-group label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 2px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.controls input {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1rem;
+  padding: 10px 16px;
+  background: #07111e;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--primary);
+  width: 180px;
+  letter-spacing: 3px;
+  outline: none;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.controls input:focus {
+  border-color: var(--primary);
+  box-shadow: var(--glow1);
+}
+
+.speed-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.speed-group label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 2px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.speed-group select {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.85rem;
+  padding: 10px 12px;
+  background: #07111e;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  outline: none;
+  cursor: pointer;
+}
+
+.btn-group {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.btn {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  padding: 11px 22px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #000;
+}
+
+.btn-primary:hover:not(:disabled) {
+  box-shadow: var(--glow1);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--text);
+  background: rgba(255,255,255,0.05);
+}
+
+.btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+/* ── EXAMPLE BUTTONS ── */
+.examples {
+  padding: 16px 28px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.examples span {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 2px;
+}
+
+.ex-btn {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.75rem;
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 1px;
+}
+
+.ex-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+/* ── LOG PANEL ── */
+.log-section {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 30px;
+}
+
+.log-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.log-header h3 {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 3px;
+  color: var(--muted);
+}
+
+.log-header .clear-btn {
+  margin-left: auto;
+  font-size: 0.65rem;
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: 'Share Tech Mono', monospace;
+  letter-spacing: 1px;
+}
+
+.log-body {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.75rem;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 12px;
+  line-height: 1.8;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.log-entry {
+  display: flex;
+  gap: 12px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  transition: background 0.2s;
+}
+
+.log-entry:hover { background: rgba(255,255,255,0.03); }
+.log-time { color: var(--muted); min-width: 50px; }
+.log-step { color: var(--border); min-width: 40px; }
+.log-msg { color: var(--text); }
+.log-msg.phase { color: var(--warn); }
+.log-msg.accept { color: var(--accent); }
+.log-msg.reject { color: var(--secondary); }
+.log-msg.info { color: var(--primary); }
+
+/* ── TRANSITION TABLE ── */
+.theory-section {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 30px;
+}
+
+.theory-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.theory-header h3 {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 3px;
+  color: var(--muted);
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.tab {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.65rem;
+  padding: 5px 14px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--muted);
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: all 0.2s;
+}
+
+.tab.active { background: rgba(0,212,255,0.1); border-color: var(--primary); color: var(--primary); }
+
+.theory-content {
+  padding: 20px;
+}
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* Transition table */
+.trans-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.75rem;
+}
+
+.trans-table th {
+  padding: 8px 12px;
+  text-align: left;
+  color: var(--muted);
+  font-size: 0.65rem;
+  letter-spacing: 2px;
+  border-bottom: 1px solid var(--border);
+  text-transform: uppercase;
+}
+
+.trans-table td {
+  padding: 8px 12px;
+  color: var(--text);
+  border-bottom: 1px solid rgba(30,58,95,0.3);
+}
+
+.trans-table tr.active-rule {
+  background: rgba(0,212,255,0.1);
+}
+
+.trans-table tr.active-rule td { color: var(--primary); }
+
+.sym {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 3px;
+  font-size: 0.85em;
+}
+
+.sym.s1 { background: rgba(0,212,255,0.15); color: var(--tape1); }
+.sym.s2 { background: rgba(255,107,53,0.15); color: var(--tape2); }
+.sym.sg { background: rgba(127,255,107,0.15); color: var(--accent); }
+
+/* Complexity chart */
+.complexity-chart {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.cmp-box {
+  background: #07111e;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 18px;
+}
+
+.cmp-box h4 {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  margin-bottom: 14px;
+}
+
+.cmp-box.t1-box h4 { color: var(--tape1); }
+.cmp-box.t2-box h4 { color: var(--tape2); }
+
+.cmp-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.75rem;
+}
+
+.cmp-row span:first-child { color: var(--muted); }
+
+.bar-wrap {
+  width: 100%;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.8s ease;
+}
+
+.bar-fill.t1 { background: var(--tape1); }
+.bar-fill.t2 { background: var(--tape2); }
+
+/* Result overlay */
+.result-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(6,10,16,0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+  backdrop-filter: blur(4px);
+}
+
+.result-overlay.show {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.result-box {
+  background: var(--card);
+  border: 2px solid;
+  border-radius: 20px;
+  padding: 40px 50px;
+  text-align: center;
+  transform: scale(0.85);
+  transition: transform 0.3s;
+  max-width: 380px;
+}
+
+.result-overlay.show .result-box {
+  transform: scale(1);
+}
+
+.result-box.accept-box { border-color: var(--accent); box-shadow: 0 0 60px rgba(127,255,107,0.3); }
+.result-box.reject-box { border-color: var(--secondary); box-shadow: 0 0 60px rgba(255,107,53,0.3); }
+
+.result-icon { font-size: 3rem; margin-bottom: 16px; }
+.result-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.6rem;
+  font-weight: 900;
+  margin-bottom: 10px;
+}
+
+.accept-box .result-title { color: var(--accent); }
+.reject-box .result-title { color: var(--secondary); }
+
+.result-sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 8px; }
+.result-stats {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin: 20px 0;
+}
+
+.stat { text-align: center; }
+.stat .sval {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.stat .slabel { font-size: 0.68rem; color: var(--muted); letter-spacing: 1px; }
+
+.result-close {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.7rem;
+  padding: 10px 30px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  letter-spacing: 2px;
+  margin-top: 10px;
+}
+
+.result-close:hover { border-color: var(--primary); color: var(--primary); }
+
+/* ── COMPARISON SECTION ── */
+.compare-section {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 30px;
+}
+
+.compare-section h3 {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 3px;
+  color: var(--muted);
+  margin-bottom: 20px;
+  text-transform: uppercase;
+}
+
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.cmp-card {
+  background: #07111e;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px;
+}
+
+.cmp-card h4 {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+  margin-bottom: 14px;
+}
+
+.cmp-card.single h4 { color: var(--tape1); }
+.cmp-card.multi h4 { color: var(--tape2); }
+
+.cmp-point {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.cmp-point .icon { flex-shrink: 0; margin-top: 2px; }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── STEP MODE TOGGLE BAR ── */
+.mode-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 28px;
+  background: rgba(0,0,0,0.2);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.mode-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 2px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.toggle-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle-track {
+  width: 36px; height: 20px;
+  border-radius: 10px;
+  background: var(--border);
+  position: relative;
+  transition: background 0.25s;
+  flex-shrink: 0;
+}
+
+.toggle-track.on { background: var(--primary); }
+
+.toggle-thumb {
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.25s;
+}
+
+.toggle-track.on .toggle-thumb { transform: translateX(16px); }
+
+.toggle-text {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text);
+  letter-spacing: 1px;
+}
+
+.step-btn {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  padding: 7px 20px;
+  border: 1px solid var(--primary);
+  border-radius: 5px;
+  background: rgba(0,212,255,0.08);
+  color: var(--primary);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: none;
+}
+
+.step-btn:hover:not(:disabled) {
+  background: rgba(0,212,255,0.18);
+  box-shadow: var(--glow1);
+}
+
+.step-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+.step-btn.visible  { display: inline-block; }
+
+.mode-hint {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--muted);
+  margin-left: auto;
+  display: none;
+}
+.mode-hint.visible { display: block; }
+
+/* ── TOOLTIP PANEL ── */
+.tooltip-panel {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.4s cubic-bezier(0.4,0,0.2,1), opacity 0.3s;
+}
+
+.tooltip-panel.open {
+  max-height: 140px;
+  opacity: 1;
+}
+
+.tooltip-inner {
+  margin: 0 28px 20px;
+  background: #07111e;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: 0 10px 10px 0;
+  padding: 14px 18px;
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 0 14px;
+  align-items: start;
+  transition: border-left-color 0.3s;
+}
+
+.tooltip-inner.phase-copy    { border-left-color: var(--tape1); }
+.tooltip-inner.phase-rewind  { border-left-color: var(--warn); }
+.tooltip-inner.phase-check   { border-left-color: var(--accent); }
+.tooltip-inner.phase-result  { border-left-color: var(--secondary); }
+
+.tt-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+  padding-top: 3px;
+  text-align: center;
+}
+
+.tt-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  margin-bottom: 6px;
+  color: var(--primary);
+  transition: color 0.3s;
+}
+
+.tt-explain {
+  font-size: 0.81rem;
+  color: var(--text);
+  line-height: 1.65;
+}
+
+.tt-explain strong { color: var(--primary); font-weight: 600; }
+.tt-explain em     { color: var(--warn); font-style: normal; }
+.tt-explain .ok    { color: var(--accent); }
+.tt-explain .bad   { color: var(--secondary); }
+
+/* ── FOOTER ── */
+.footer {
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--muted);
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  font-family: 'Share Tech Mono', monospace;
+  letter-spacing: 1px;
+}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+.wrapper > * { animation: fadeIn 0.5s ease backwards; }
+.wrapper > *:nth-child(1) { animation-delay: 0.05s; }
+.wrapper > *:nth-child(2) { animation-delay: 0.1s; }
+.wrapper > *:nth-child(3) { animation-delay: 0.15s; }
+.wrapper > *:nth-child(4) { animation-delay: 0.2s; }
+.wrapper > *:nth-child(5) { animation-delay: 0.25s; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 700px) {
+  .concept-grid { grid-template-columns: 1fr; }
+  .compare-grid { grid-template-columns: 1fr; }
+  .complexity-chart { grid-template-columns: 1fr; }
+  .btn-group { margin-left: 0; width: 100%; }
+  .controls input { width: 140px; }
+}
+</style>
 </head>
 <body>
 
-<div class="machine-wrap">
-    <h1 style="text-align: center; margin-top: 0;">Multi-Tape Simulator</h1>
+<div class="wrapper">
 
-    <div class="status-panel">
-        <span>STATE: <span id="state">IDLE</span></span>
-        <span>STEPS: <span id="steps">0</span></span>
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-badge">⚙ Advanced Computational Models</div>
+    <h1>Multi-Tape Turing<br>Machine Simulator</h1>
+    <p>Explore how multiple tapes interact during computation and how the machine processes information more efficiently compared to a single-tape model.</p>
+  </div>
+
+  <!-- CONCEPT CARDS -->
+  <div class="concept-grid">
+    <div class="concept-card c1">
+      <h3>📼 Tape 1 — Input Tape</h3>
+      <p>Holds the original input string. The read head scans left-to-right during the copy phase, then reverses for palindrome verification. This tape is <em>read-only</em> in the check phase.</p>
+    </div>
+    <div class="concept-card c2">
+      <h3>📼 Tape 2 — Work Tape</h3>
+      <p>Acts as scratch space. A copy of the input is written here, then read backwards during the palindrome check. This allows simultaneous bidirectional comparison impossible on a single tape.</p>
+    </div>
+    <div class="concept-card c3">
+      <h3>⚡ Efficiency Gain</h3>
+      <p>A single-tape machine needs O(n²) steps for palindrome checking. The 2-tape machine does it in O(n) steps — a polynomial speedup that demonstrates the power of multi-tape computation.</p>
+    </div>
+    <div class="concept-card c4">
+      <h3>🔄 Transition Function</h3>
+      <p>δ(q, a, b) → (q', a', b', D₁, D₂) — reads symbols from both tapes simultaneously, writes to both, and moves each head independently. Three phases: Copy → Rewind → Check.</p>
+    </div>
+  </div>
+
+  <!-- MAIN SIMULATOR -->
+  <div class="simulator">
+    <div class="sim-header">
+      <h2>▶ LIVE SIMULATION</h2>
+      <div class="status-chips">
+        <div class="chip">
+          <span class="label">STATE</span>
+          <span class="val" id="cur-state">q₀</span>
+        </div>
+        <div class="chip">
+          <span class="label">STEPS</span>
+          <span class="val" id="step-count">0</span>
+        </div>
+        <div class="chip">
+          <span class="label">HEAD 1</span>
+          <span class="val" id="h1-pos">0</span>
+        </div>
+        <div class="chip">
+          <span class="label">HEAD 2</span>
+          <span class="val" id="h2-pos">0</span>
+        </div>
+      </div>
     </div>
 
-    <div class="label">TAPE 1: INPUT</div>
-    <div class="tape-view">
-        <div class="visual-head"></div>
-        <div id="strip1" class="tape-strip"></div>
+    <div class="phase-banner">
+      <div class="phase-dot" id="phase-dot"></div>
+      <span id="phase-text">IDLE</span>
+      <span id="phase-desc">— Enter an input string and press START</span>
     </div>
 
-    <div class="label">TAPE 2: WORK</div>
-    <div class="tape-view">
-        <div class="visual-head"></div>
-        <div id="strip2" class="tape-strip"></div>
+    <!-- STEP MODE BAR -->
+    <div class="mode-bar">
+      <span class="mode-label">Mode:</span>
+      <div class="toggle-wrap" onclick="toggleStepMode()">
+        <div class="toggle-track" id="toggleTrack">
+          <div class="toggle-thumb"></div>
+        </div>
+        <span class="toggle-text" id="toggleText">AUTO-RUN</span>
+      </div>
+      <button class="step-btn" id="stepBtn" onclick="doNextStep()" disabled>NEXT STEP ▶</button>
+      <span class="mode-hint" id="modeHint">Press NEXT STEP to advance one transition at a time</span>
+    </div>
+
+    <!-- TOOLTIP PANEL (slides open per step) -->
+    <div class="tooltip-panel" id="tooltipPanel">
+      <div class="tooltip-inner" id="tooltipInner">
+        <div class="tt-icon" id="ttIcon">⚙</div>
+        <div class="tt-body">
+          <div class="tt-title" id="ttTitle">WAITING</div>
+          <div class="tt-explain" id="ttExplain">Start the simulation to see step-by-step explanations here.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tape-section">
+      <!-- TAPE 1 -->
+      <div class="tape-block">
+        <div class="tape-label">
+          <div class="dot" style="background:var(--tape1)"></div>
+          <h4 style="color:var(--tape1)">TAPE 1 — INPUT</h4>
+          <span class="head-pos" style="color:var(--tape1)" id="t1-sym">⊔</span>
+          <span class="role">READ / WRITE</span>
+        </div>
+        <div class="tape-viewport">
+          <div class="head-marker tape1-head">
+            <div class="head-box"></div>
+          </div>
+          <div class="tape-strip" id="strip1"></div>
+        </div>
+      </div>
+
+      <!-- TAPE 2 -->
+      <div class="tape-block" style="margin-bottom:0">
+        <div class="tape-label">
+          <div class="dot" style="background:var(--tape2)"></div>
+          <h4 style="color:var(--tape2)">TAPE 2 — WORK</h4>
+          <span class="head-pos" style="color:var(--tape2)" id="t2-sym">⊔</span>
+          <span class="role">SCRATCH SPACE</span>
+        </div>
+        <div class="tape-viewport">
+          <div class="head-marker tape2-head">
+            <div class="head-box"></div>
+          </div>
+          <div class="tape-strip" id="strip2"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="examples">
+      <span>EXAMPLES:</span>
+      <button class="ex-btn" onclick="setInput('racecar')">racecar</button>
+      <button class="ex-btn" onclick="setInput('1001001')">1001001</button>
+      <button class="ex-btn" onclick="setInput('abcba')">abcba</button>
+      <button class="ex-btn" onclick="setInput('hello')">hello ✗</button>
+      <button class="ex-btn" onclick="setInput('abab')">abab ✗</button>
+      <button class="ex-btn" onclick="setInput('a')">a</button>
     </div>
 
     <div class="controls">
-        <input type="text" id="inputVal" value="11011" maxlength="12">
-        <button id="btnRun" onclick="run()">START SIMULATION</button>
-        <button onclick="reset()">RESET</button>
+      <div class="input-group">
+        <label>Input String</label>
+        <input type="text" id="inputVal" value="racecar" maxlength="14" spellcheck="false">
+      </div>
+      <div class="speed-group">
+        <label>Speed</label>
+        <select id="speedSel">
+          <option value="600">Slow</option>
+          <option value="350" selected>Normal</option>
+          <option value="150">Fast</option>
+          <option value="50">Turbo</option>
+        </select>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" id="btnRun" onclick="run()">▶ START</button>
+        <button class="btn btn-secondary" onclick="doReset()">↺ RESET</button>
+      </div>
     </div>
+  </div>
+
+  <!-- LOG -->
+  <div class="log-section">
+    <div class="log-header">
+      <span style="font-size:1rem">📋</span>
+      <h3>COMPUTATION LOG</h3>
+      <button class="clear-btn" onclick="clearLog()">CLEAR</button>
+    </div>
+    <div class="log-body" id="logBody">
+      <div class="log-entry">
+        <span class="log-time">--:--</span>
+        <span class="log-step">S:0</span>
+        <span class="log-msg info">System ready. Load an input string and press START.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- THEORY -->
+  <div class="theory-section">
+    <div class="theory-header">
+      <span style="font-size:1rem">🧠</span>
+      <h3>THEORY & TRANSITIONS</h3>
+      <div class="tabs">
+        <button class="tab active" onclick="showTab('transitions')">Δ Transitions</button>
+        <button class="tab" onclick="showTab('complexity')">Complexity</button>
+      </div>
+    </div>
+    <div class="theory-content">
+      <div class="tab-panel active" id="tab-transitions">
+        <table class="trans-table" id="transTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Phase / State</th>
+              <th>Read T1</th>
+              <th>Read T2</th>
+              <th>Write T1</th>
+              <th>Write T2</th>
+              <th>Move H1</th>
+              <th>Move H2</th>
+              <th>Next State</th>
+            </tr>
+          </thead>
+          <tbody id="trans-body"></tbody>
+        </table>
+      </div>
+      <div class="tab-panel" id="tab-complexity">
+        <div class="complexity-chart">
+          <div class="cmp-box t1-box">
+            <h4>SINGLE-TAPE TIME</h4>
+            <div class="cmp-row"><span>n=5</span><span>~25 steps</span></div>
+            <div class="bar-wrap"><div class="bar-fill t1" style="width:40%"></div></div>
+            <div class="cmp-row"><span>n=10</span><span>~100 steps</span></div>
+            <div class="bar-wrap"><div class="bar-fill t1" style="width:70%"></div></div>
+            <div class="cmp-row"><span>n=20</span><span>~400 steps</span></div>
+            <div class="bar-wrap"><div class="bar-fill t1" style="width:100%"></div></div>
+            <p style="margin-top:14px;font-size:0.78rem;color:var(--muted)">Complexity: <strong style="color:var(--tape1)">O(n²)</strong> — the head must sweep back and forth across the full tape for each symbol comparison.</p>
+          </div>
+          <div class="cmp-box t2-box">
+            <h4>2-TAPE TIME</h4>
+            <div class="cmp-row"><span>n=5</span><span>~15 steps</span></div>
+            <div class="bar-wrap"><div class="bar-fill t2" style="width:8%"></div></div>
+            <div class="cmp-row"><span>n=10</span><span>~30 steps</span></div>
+            <div class="bar-wrap"><div class="bar-fill t2" style="width:18%"></div></div>
+            <div class="cmp-row"><span>n=20</span><span>~60 steps</span></div>
+            <div class="bar-wrap"><div class="bar-fill t2" style="width:35%"></div></div>
+            <p style="margin-top:14px;font-size:0.78rem;color:var(--muted)">Complexity: <strong style="color:var(--tape2)">O(n)</strong> — each head moves once per character. Copy forward, then compare while moving opposite directions.</p>
+          </div>
+        </div>
+        <div style="margin-top:18px;padding:16px;background:#07111e;border-radius:8px;font-size:0.8rem;color:var(--muted);line-height:1.7;border:1px solid var(--border)">
+          <strong style="color:var(--warn)">Theorem (Linear Speedup):</strong> Any k-tape Turing machine with time complexity T(n) can be simulated by a single-tape machine in time O(T(n)²). Conversely, a 2-tape machine can solve palindrome in O(n), while any single-tape machine requires Ω(n log n) steps. This proves the multi-tape model is <em>strictly more efficient</em> (though not more powerful — both recognize exactly the class of Turing-recognizable languages).
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMPARISON -->
+  <div class="compare-section">
+    <h3>Single-Tape vs Multi-Tape — Key Differences</h3>
+    <div class="compare-grid">
+      <div class="cmp-card single">
+        <h4>📼 Single-Tape Machine</h4>
+        <div class="cmp-point"><span class="icon">⚠</span><span>Must physically move the head back to the start after reading the input — wastes O(n) steps per comparison.</span></div>
+        <div class="cmp-point"><span class="icon">⚠</span><span>Palindrome check requires repeated back-and-forth sweeps, giving O(n²) total time.</span></div>
+        <div class="cmp-point"><span class="icon">⚠</span><span>State must encode position information implicitly — transition table grows larger.</span></div>
+        <div class="cmp-point"><span class="icon">✓</span><span>Simpler hardware model. Easier to reason about theoretically.</span></div>
+      </div>
+      <div class="cmp-card multi">
+        <h4>📼📼 Multi-Tape Machine</h4>
+        <div class="cmp-point"><span class="icon">✓</span><span>Copy phase duplicates input in O(n) steps. Both heads then move simultaneously in opposite directions.</span></div>
+        <div class="cmp-point"><span class="icon">✓</span><span>Check phase runs in O(n) — each step compares one character from each end simultaneously.</span></div>
+        <div class="cmp-point"><span class="icon">✓</span><span>Transition function reads and writes multiple symbols per step — more expressive per computation step.</span></div>
+        <div class="cmp-point"><span class="icon">✓</span><span>Equivalent power to single-tape — same languages recognized — but polynomially faster.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">MULTI-TAPE TURING MACHINE SIMULATOR &nbsp;|&nbsp; ADVANCED COMPUTATIONAL MODELS PROJECT &nbsp;|&nbsp; PALINDROME RECOGNITION</div>
+
+</div>
+
+<!-- RESULT OVERLAY -->
+<div class="result-overlay" id="resultOverlay">
+  <div class="result-box" id="resultBox">
+    <div class="result-icon" id="resultIcon"></div>
+    <div class="result-title" id="resultTitle"></div>
+    <div class="result-sub" id="resultSub"></div>
+    <div class="result-stats">
+      <div class="stat"><div class="sval" id="rSteps">0</div><div class="slabel">STEPS</div></div>
+      <div class="stat"><div class="sval" id="rLen">0</div><div class="slabel">LENGTH</div></div>
+      <div class="stat"><div class="sval" id="rPhases">3</div><div class="slabel">PHASES</div></div>
+    </div>
+    <button class="result-close" onclick="closeResult()">CONTINUE</button>
+  </div>
 </div>
 
 <script>
-    const TAPE_LEN = 100;
-    const START_POS = 50; // The "logical" center of our array
-    const BLANK = '⊔';
-    
-    let tape1 = Array(TAPE_LEN).fill(BLANK);
-    let tape2 = Array(TAPE_LEN).fill(BLANK);
-    let head1 = START_POS;
-    let head2 = START_POS;
-    let stepCount = 0;
+// ════════════════════════════════════════════════
+//  CONFIGURATION
+// ════════════════════════════════════════════════
+const TAPE_LEN  = 120;
+const START_POS = 60;
+const BLANK     = '⊔';
 
-    // This function calculates how much to shift the tape strip
-    // so that the cell at 'headIndex' is exactly under the red head.
-    function render() {
-        const updateStrip = (id, data, head) => {
-            const container = document.getElementById(id);
-            // Re-render cells
-            container.innerHTML = data.map(char => 
-                `<div class="cell ${char !== BLANK ? 'filled' : ''}">${char}</div>`
-            ).join('');
-            
-            // MATH: Move the strip so index 'head' is at center of screen.
-            // Center of screen is 0px in absolute positioning if we offset correctly.
-            // Since the tape-view is 900px wide, center is 450px.
-            // Each cell is 60px.
-            const centerPoint = 450;
-            const headOffset = (head * 60) + 30; // center of the specific cell
-            const finalTranslate = centerPoint - headOffset;
-            
-            container.style.transform = `translateX(${finalTranslate}px)`;
-        };
+// ════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════
+let tape1, tape2, head1, head2, stepCount, running;
 
-        updateStrip('strip1', tape1, head1);
-        updateStrip('strip2', tape2, head2);
-        document.getElementById('steps').innerText = stepCount;
+// Step-by-step mode
+let stepMode    = false;         // is step-mode on?
+let stepResolve = null;          // resolve fn for the current "wait for click" promise
+
+function initTapes() {
+  tape1     = Array(TAPE_LEN).fill(BLANK);
+  tape2     = Array(TAPE_LEN).fill(BLANK);
+  head1     = START_POS;
+  head2     = START_POS;
+  stepCount = 0;
+  running   = false;
+}
+initTapes();
+
+// ════════════════════════════════════════════════
+//  TRANSITION TABLE DATA
+// ════════════════════════════════════════════════
+const transitions = [
+  { id:1,  phase:'COPY',    state:'q₀', r1:'σ', r2:'⊔', w1:'σ', w2:'σ', m1:'R', m2:'R', next:'q₀', desc:'Copy each input symbol to tape 2' },
+  { id:2,  phase:'COPY',    state:'q₀', r1:'⊔', r2:'⊔', w1:'⊔', w2:'⊔', m1:'—', m2:'L', next:'q₁', desc:'End of input — begin rewind' },
+  { id:3,  phase:'REWIND',  state:'q₁', r1:'*', r2:'σ', w1:'*', w2:'σ', m1:'—', m2:'L', next:'q₁', desc:'Move tape 2 head to last symbol' },
+  { id:4,  phase:'REWIND',  state:'q₁', r1:'*', r2:'⊔', w1:'*', w2:'⊔', m1:'L', m2:'—', next:'q₂', desc:'Reset tape 1 head to start' },
+  { id:5,  phase:'CHECK',   state:'q₂', r1:'σ', r2:'σ', w1:'σ', w2:'σ', m1:'R', m2:'L', next:'q₂', desc:'Compare T1[i] == T2[n-i]; both heads converge' },
+  { id:6,  phase:'CHECK',   state:'q₂', r1:'⊔', r2:'⊔', w1:'⊔', w2:'⊔', m1:'—', m2:'—', next:'qA', desc:'Both blanks met — ACCEPT palindrome' },
+  { id:7,  phase:'CHECK',   state:'q₂', r1:'σ', r2:'τ', w1:'σ', w2:'τ', m1:'—', m2:'—', next:'qR', desc:'Mismatch found — REJECT' },
+];
+
+// ════════════════════════════════════════════════
+//  RENDER TRANSITIONS TABLE
+// ════════════════════════════════════════════════
+function renderTransTable(activeId = null) {
+  const tbody = document.getElementById('trans-body');
+  tbody.innerHTML = transitions.map(t => `
+    <tr class="${activeId === t.id ? 'active-rule' : ''}">
+      <td>${t.id}</td>
+      <td>${t.phase}<br><small style="color:var(--muted)">${t.state}</small></td>
+      <td><span class="sym s1">${t.r1}</span></td>
+      <td><span class="sym s2">${t.r2}</span></td>
+      <td><span class="sym s1">${t.w1}</span></td>
+      <td><span class="sym s2">${t.w2}</span></td>
+      <td><span class="sym sg">${t.m1}</span></td>
+      <td><span class="sym sg">${t.m2}</span></td>
+      <td>${t.next}</td>
+    </tr>
+  `).join('');
+}
+renderTransTable();
+
+// ════════════════════════════════════════════════
+//  STEP MODE
+// ════════════════════════════════════════════════
+function toggleStepMode() {
+  if (running) return; // don't allow switching mid-run
+  stepMode = !stepMode;
+  const track = document.getElementById('toggleTrack');
+  const text  = document.getElementById('toggleText');
+  const btn   = document.getElementById('stepBtn');
+  const hint  = document.getElementById('modeHint');
+  track.classList.toggle('on', stepMode);
+  text.textContent = stepMode ? 'STEP-BY-STEP' : 'AUTO-RUN';
+  btn.classList.toggle('visible', stepMode);
+  hint.classList.toggle('visible', stepMode);
+}
+
+// Called when user clicks NEXT STEP
+function doNextStep() {
+  if (stepResolve) {
+    const fn = stepResolve;
+    stepResolve = null;
+    document.getElementById('stepBtn').disabled = true;
+    fn();
+  }
+}
+
+// In step mode, pause and wait for the button click
+function waitForStep() {
+  if (!stepMode) return Promise.resolve();
+  document.getElementById('stepBtn').disabled = false;
+  return new Promise(resolve => { stepResolve = resolve; });
+}
+
+// ════════════════════════════════════════════════
+//  TOOLTIP
+// ════════════════════════════════════════════════
+const PHASE_CLASSES = ['phase-copy','phase-rewind','phase-check','phase-result'];
+
+function showTooltip({ icon, title, html, phase }) {
+  const panel = document.getElementById('tooltipPanel');
+  const inner = document.getElementById('tooltipInner');
+  document.getElementById('ttIcon').textContent    = icon;
+  document.getElementById('ttTitle').textContent   = title;
+  document.getElementById('ttExplain').innerHTML   = html;
+  inner.classList.remove(...PHASE_CLASSES);
+  if (phase) inner.classList.add(phase);
+  panel.classList.add('open');
+}
+
+function hideTooltip() {
+  document.getElementById('tooltipPanel').classList.remove('open');
+}
+
+// ════════════════════════════════════════════════
+//  TABS
+// ════════════════════════════════════════════════
+function showTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ════════════════════════════════════════════════
+//  LOG
+// ════════════════════════════════════════════════
+let logEntries = [];
+
+function addLog(msg, type = '') {
+  const now = new Date();
+  const time = now.toTimeString().slice(0, 5);
+  logEntries.push({ time, step: stepCount, msg, type });
+  renderLog();
+}
+
+function renderLog() {
+  const body = document.getElementById('logBody');
+  body.innerHTML = logEntries.slice(-60).map(e => `
+    <div class="log-entry">
+      <span class="log-time">${e.time}</span>
+      <span class="log-step">S:${e.step}</span>
+      <span class="log-msg ${e.type}">${e.msg}</span>
+    </div>
+  `).join('');
+  body.scrollTop = body.scrollHeight;
+}
+
+function clearLog() {
+  logEntries = [];
+  renderLog();
+}
+
+// ════════════════════════════════════════════════
+//  RENDER TAPES
+// ════════════════════════════════════════════════
+function render(activeRule = null) {
+  const CELL_W = 58; // must match --cell px value
+
+  const buildStrip = (id, data, head, cls) => {
+    const container = document.getElementById(id);
+    // measure the actual viewport width of THIS strip's parent
+    const viewportW = container.parentElement.offsetWidth || 900;
+    const center = viewportW / 2;
+
+    container.innerHTML = data.map((ch, i) => {
+      const isActive = (i === head);
+      const isBlank  = (ch === BLANK);
+      return `<div class="cell ${isBlank ? 'blank' : cls} ${isActive ? (cls.includes('t1') ? 'active-t1' : 'active-t2') : ''}" data-idx="${i - START_POS}">${ch}</div>`;
+    }).join('');
+
+    // shift so that the CENTER of the head cell aligns with the viewport center
+    // head cell left edge = head * CELL_W; its center = head * CELL_W + CELL_W/2
+    const shift = center - (head * CELL_W + CELL_W / 2);
+    container.style.transform = `translateX(${shift}px)`;
+  };
+
+  buildStrip('strip1', tape1, head1, 't1-cell');
+  buildStrip('strip2', tape2, head2, 't2-cell');
+
+  document.getElementById('step-count').textContent = stepCount;
+  document.getElementById('h1-pos').textContent = head1 - START_POS;
+  document.getElementById('h2-pos').textContent = head2 - START_POS;
+  document.getElementById('t1-sym').textContent = tape1[head1] || BLANK;
+  document.getElementById('t2-sym').textContent = tape2[head2] || BLANK;
+
+  if (activeRule) renderTransTable(activeRule);
+}
+
+// ════════════════════════════════════════════════
+//  PHASE UI
+// ════════════════════════════════════════════════
+function setPhase(name, desc, color = 'var(--primary)') {
+  document.getElementById('phase-text').textContent = name;
+  document.getElementById('phase-text').style.color = color;
+  document.getElementById('phase-desc').textContent = '— ' + desc;
+  document.getElementById('cur-state').textContent = name.split(' ')[0].toLowerCase();
+}
+
+// ════════════════════════════════════════════════
+//  HELPERS
+// ════════════════════════════════════════════════
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function setInput(val) {
+  document.getElementById('inputVal').value = val;
+}
+
+function doReset() {
+  running = false;
+  stepResolve = null;
+  document.getElementById('stepBtn').disabled = true;
+  hideTooltip();
+  initTapes();
+  setPhase('IDLE', 'Enter an input string and press START');
+  document.getElementById('cur-state').textContent = 'q₀';
+  document.getElementById('step-count').textContent = '0';
+  document.getElementById('h1-pos').textContent = '0';
+  document.getElementById('h2-pos').textContent = '0';
+  document.getElementById('t1-sym').textContent = BLANK;
+  document.getElementById('t2-sym').textContent = BLANK;
+  document.getElementById('btnRun').disabled = false;
+  renderTransTable();
+  render();
+  addLog('Machine reset.', 'info');
+}
+
+function showResult(accepted, inputStr) {
+  const overlay = document.getElementById('resultOverlay');
+  const box     = document.getElementById('resultBox');
+
+  document.getElementById('resultIcon').textContent = accepted ? '✅' : '❌';
+  document.getElementById('resultTitle').textContent = accepted ? 'ACCEPTED' : 'REJECTED';
+  document.getElementById('resultSub').textContent   =
+    accepted
+      ? `"${inputStr}" is a palindrome!`
+      : `"${inputStr}" is NOT a palindrome.`;
+  document.getElementById('rSteps').textContent  = stepCount;
+  document.getElementById('rLen').textContent    = inputStr.length;
+  document.getElementById('rPhases').textContent = 3;
+
+  box.className = 'result-box ' + (accepted ? 'accept-box' : 'reject-box');
+  overlay.classList.add('show');
+}
+
+function closeResult() {
+  document.getElementById('resultOverlay').classList.remove('show');
+}
+
+// ════════════════════════════════════════════════
+//  MAIN SIMULATION
+// ════════════════════════════════════════════════
+async function run() {
+  doReset();
+  await sleep(100);
+
+  const input  = document.getElementById('inputVal').value.trim() || 'racecar';
+  const SPEED  = () => stepMode ? 0 : parseInt(document.getElementById('speedSel').value);
+  running      = true;
+
+  document.getElementById('btnRun').disabled = true;
+  if (stepMode) document.getElementById('stepBtn').disabled = false;
+
+  if (input.length === 0) {
+    addLog('Empty input — trivially accepted.', 'accept');
+    showResult(true, '');
+    return;
+  }
+
+  // ── LOAD ─────────────────────────────────────
+  for (let i = 0; i < input.length; i++) tape1[START_POS + i] = input[i];
+  addLog(`Loaded "${input}" onto Tape 1 (${input.length} symbols).`, 'info');
+
+  showTooltip({
+    icon: '📥', phase: 'phase-copy',
+    title: 'LOADING INPUT',
+    html: `The string <strong>"${input}"</strong> (length ${input.length}) is written onto <strong>Tape 1</strong> starting at position 0. Tape 2 is blank. Both heads start at position 0.`
+  });
+
+  render();
+  await sleep(SPEED() * 2);
+  await waitForStep();
+
+  // ── PHASE 1: COPY ────────────────────────────
+  setPhase('COPY', 'Copying Tape 1 → Tape 2; both heads moving RIGHT', 'var(--primary)');
+  addLog('Phase 1: COPY — duplicating input to work tape.', 'phase');
+  document.getElementById('cur-state').textContent = 'q₀';
+
+  for (let i = 0; i < input.length; i++) {
+    if (!running) return;
+
+    tape2[head2] = tape1[head1];
+    stepCount++;
+
+    const sym = tape1[head1];
+    addLog(`[COPY] T1[${i}]='${sym}' → T2[${i}]='${sym}'  H1→R  H2→R`, 'info');
+
+    showTooltip({
+      icon: '📋', phase: 'phase-copy',
+      title: `COPY — STEP ${stepCount}`,
+      html: `Reading <strong>'${sym}'</strong> from Tape 1 position <em>${i}</em>. Writing it to Tape 2 position <em>${i}</em>. Both heads move <strong>RIGHT</strong>. This builds a mirror-ready copy on Tape 2. (${input.length - i - 1} symbols left to copy)`
+    });
+
+    renderTransTable(1);
+    render(1);
+    await sleep(SPEED());
+    await waitForStep();
+
+    head1++; head2++;
+    render(1);
+    await sleep(SPEED() * 0.3);
+  }
+
+  // ── PHASE 2: REWIND ──────────────────────────
+  setPhase('REWIND', 'Resetting Head 1 to start; Head 2 moves to last symbol', 'var(--warn)');
+  addLog('Phase 2: REWIND — repositioning heads for comparison.', 'phase');
+  document.getElementById('cur-state').textContent = 'q₁';
+  renderTransTable(2);
+
+  head1 = START_POS;
+  head2--;
+
+  showTooltip({
+    icon: '⏮', phase: 'phase-rewind',
+    title: 'REWIND — REPOSITIONING HEADS',
+    html: `Copy complete! Head 1 jumps back to position <em>0</em> (first character <strong>'${tape1[START_POS]}'</strong>). Head 2 steps back to position <em>${input.length - 1}</em> (last character <strong>'${tape2[START_POS + input.length - 1]}'</strong>). Now they face each other on their respective tapes.`
+  });
+
+  render(2);
+  await sleep(SPEED() * 2);
+  await waitForStep();
+  addLog(`Heads repositioned: H1@[0]='${tape1[head1]}', H2@[${input.length-1}]='${tape2[head2]}'`, 'info');
+
+  // ── PHASE 3: CHECK ───────────────────────────
+  setPhase('CHECK', 'Head 1 → RIGHT, Head 2 → LEFT; comparing mirrored positions', 'var(--accent)');
+  addLog('Phase 3: CHECK — simultaneous bidirectional comparison.', 'phase');
+  document.getElementById('cur-state').textContent = 'q₂';
+
+  for (let i = 0; i < input.length; i++) {
+    if (!running) return;
+
+    const s1 = tape1[head1];
+    const s2 = tape2[head2];
+    const match = (s1 === s2);
+    const remaining = input.length - i - 1;
+
+    stepCount++;
+    addLog(`[CHECK] T1[${i}]='${s1}' ${match ? '==' : '≠'} T2[${input.length-1-i}]='${s2}' ${match ? '✓' : '✗'}`, match ? 'info' : 'reject');
+
+    if (match) {
+      showTooltip({
+        icon: '✅', phase: 'phase-check',
+        title: `CHECK — STEP ${stepCount} — MATCH`,
+        html: `Tape 1 pos <em>${i}</em> = <strong class="ok">'${s1}'</strong> &nbsp;|&nbsp; Tape 2 pos <em>${input.length-1-i}</em> = <strong class="ok">'${s2}'</strong>. They match! Head 1 moves <strong>RIGHT</strong>, Head 2 moves <strong>LEFT</strong>. ${remaining > 0 ? `<em>${remaining}</em> comparison${remaining>1?'s':''} remaining.` : 'Last comparison — about to accept!'}`
+      });
+    } else {
+      showTooltip({
+        icon: '❌', phase: 'phase-result',
+        title: `CHECK — STEP ${stepCount} — MISMATCH`,
+        html: `Tape 1 pos <em>${i}</em> = <strong class="bad">'${s1}'</strong> &nbsp;≠&nbsp; Tape 2 pos <em>${input.length-1-i}</em> = <strong class="bad">'${s2}'</strong>. Characters don't match — <strong class="bad">not a palindrome</strong>. Machine halts and rejects the input.`
+      });
+      renderTransTable(7);
+      render(7);
+      await sleep(SPEED());
+      await waitForStep();
+      setPhase('REJECTED', `Mismatch at position ${i}: '${s1}' ≠ '${s2}'`, 'var(--secondary)');
+      document.getElementById('cur-state').textContent = 'qR';
+      showResult(false, input);
+      return;
     }
 
-    function reset() {
-        tape1.fill(BLANK);
-        tape2.fill(BLANK);
-        head1 = START_POS;
-        head2 = START_POS;
-        stepCount = 0;
-        document.getElementById('state').innerText = "IDLE";
-        document.getElementById('btnRun').disabled = false;
-        render();
-    }
+    renderTransTable(5);
+    render(5);
+    await sleep(SPEED());
+    await waitForStep();
 
-    async function run() {
-        reset();
-        const input = document.getElementById('inputVal').value || "11011";
-        document.getElementById('btnRun').disabled = true;
+    head1++; head2--;
+    render(5);
+    await sleep(SPEED() * 0.3);
+  }
 
-        // LOAD: Put input onto Tape 1 starting at the head
-        for(let i=0; i<input.length; i++) {
-            tape1[START_POS + i] = input[i];
-        }
-        render();
-        await sleep(1000);
+  // ── ACCEPT ───────────────────────────────────
+  setPhase('ACCEPTED ✓', `"${input}" is a palindrome!`, 'var(--accent)');
+  document.getElementById('cur-state').textContent = 'qA';
+  addLog(`ACCEPTED: "${input}" is a palindrome (${stepCount} steps, O(n) time).`, 'accept');
 
-        // 1. COPY PHASE
-        document.getElementById('state').innerText = "PHASE: COPYING";
-        for(let i=0; i<input.length; i++) {
-            tape2[head2] = tape1[head1];
-            stepCount++;
-            render();
-            await sleep(500);
-            head1++;
-            head2++;
-            render();
-            await sleep(200);
-        }
+  showTooltip({
+    icon: '🎉', phase: 'phase-check',
+    title: 'ACCEPTED — PALINDROME CONFIRMED',
+    html: `All <strong>${input.length}</strong> character pairs matched perfectly. <strong>"${input}"</strong> reads the same forwards and backwards. The machine halts in the <strong class="ok">accept state qA</strong> after <em>${stepCount} steps</em>.`
+  });
 
-        // 2. REWIND PHASE
-        document.getElementById('state').innerText = "PHASE: REWINDING";
-        head1 = START_POS; // Jump back
-        head2--; // Move off the blank into the last char
-        render();
-        await sleep(1000);
-
-        // 3. CHECK PHASE
-        document.getElementById('state').innerText = "PHASE: CHECKING";
-        for(let i=0; i<input.length; i++) {
-            render();
-            await sleep(600);
-            
-            if(tape1[head1] !== tape2[head2]) {
-                document.getElementById('state').innerText = "REJECTED";
-                return;
-            }
-            stepCount++;
-            head1++;
-            head2--;
-        }
-
-        document.getElementById('state').innerText = "ACCEPTED";
-    }
-
-    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-    
-    // Initial draw
-    render();
+  renderTransTable(6);
+  render(6);
+  await sleep(SPEED());
+  await waitForStep();
+  showResult(true, input);
+}
 </script>
-
 </body>
 </html>
